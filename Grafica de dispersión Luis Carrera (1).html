@@ -1,0 +1,381 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html><head></head><body>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="display: none;"></div>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div>
+
+
+
+<h1 class="title toc-ignore">Grafica de dispersi&#243;n Luis Carrera</h1>
+<h4 class="author">Luis Carrera</h4>
+<h4 class="date">2024-03-22</h4>
+
+</div>
+
+
+<p>Ejecuci&#243;n de los paquetes</p>
+<pre class="r"><code class="hljs"><span class="hljs-keyword">library</span>(pacman)
+
+p_load(<span class="hljs-string">&quot;readr&quot;</span>,
+       <span class="hljs-string">&quot;ggplot2&quot;</span>,
+       <span class="hljs-string">&quot;ggrepel&quot;</span>,
+       <span class="hljs-string">&quot;dplyr&quot;</span>)</code></pre>
+<p>Llamado de la base de datos, si quiero llamar una base de datos solo
+cambiarlo que est&#233; entre comillas</p>
+<pre class="r"><code class="hljs">datos &lt;- read_csv(file = <span class="hljs-string">&quot;https://raw.githubusercontent.com/ManuelLaraMVZ/Transcript-mica/main/datos_miRNAs.csv&quot;</span>)</code></pre>
+<pre><code class="hljs">## `curl` package not installed, falling back to using `url()`
+## Rows: 363 Columns: 8
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (2): Gen, Condicion
+## dbl (6): Cx1, Cx2, Cx3, T1, T2, T3
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code class="hljs">head(datos)</code></pre>
+<pre><code class="hljs">## # A tibble: 6 &#215; 8
+##   Gen                Condicion   Cx1   Cx2   Cx3    T1    T2    T3
+##   &lt;chr&gt;              &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 U6 snRNA-001973    Control    13.8  11.7  11.9  13.2  13.0  12.6
+## 2 ath-miR159a-000338 Target     35    35    35    35    35    35  
+## 3 hsa-let-7a-000377  Target     20.5  21.0  21.0  20.4  19.6  20.9
+## 4 hsa-let-7b-002619  Target     18.4  19.0  19.1  18.3  17.4  19.0
+## 5 hsa-let-7c-000379  Target     22.2  23.7  23.8  22.9  22.0  24.0
+## 6 hsa-let-7d-002283  Target     22.2  22.7  21.9  22.0  21.2  21.9</code></pre>
+<p>Procesamiento de los controles:</p>
+<ol style="list-style-type: decimal;">
+<li>extraer los genes de referencia que tienen el nombre controles en la
+segunda columna.</li>
+<li>Obtener el promedio de las columnas</li>
+</ol>
+<pre class="r"><code class="hljs">Controles &lt;- datos %&gt;% 
+  filter(Condicion==<span class="hljs-string">&quot;Control&quot;</span>)
+
+head(Controles)</code></pre>
+<pre><code class="hljs">## # A tibble: 3 &#215; 8
+##   Gen             Condicion   Cx1   Cx2   Cx3    T1    T2    T3
+##   &lt;chr&gt;           &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 U6 snRNA-001973 Control    13.8  11.7  11.9  13.2  13.0  12.6
+## 2 RNU44-001094    Control    17.3  16.9  16.8  17.7  17.3  16.8
+## 3 RNU48-001006    Control    15.1  16.4  17.0  16.0  15.1  16.4</code></pre>
+<pre class="r"><code class="hljs">promedio_controles &lt;- Controles %&gt;% 
+  summarise(Mean_C1 = mean(Cx1), 
+            Mean_C2 = mean(Cx2), 
+            Mean_C3 = mean(Cx3),
+            Mean_T1 = mean(T1),
+            Mean_T2 = mean(T2),
+            Mean_T3 = mean(T3)) %&gt;% 
+  mutate(Gen=<span class="hljs-string">&quot;Promedio_controles&quot;</span>) %&gt;% 
+  select(<span class="hljs-number">7</span>,<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">4</span>,<span class="hljs-number">5</span>,<span class="hljs-number">6</span>)
+promedio_controles</code></pre>
+<pre><code class="hljs">## # A tibble: 1 &#215; 7
+##   Gen                Mean_C1 Mean_C2 Mean_C3 Mean_T1 Mean_T2 Mean_T3
+##   &lt;chr&gt;                &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+## 1 Promedio_controles    15.4    15.0    15.3    15.6    15.1    15.3</code></pre>
+<p>Obtener los genes de inter&#233;s que tienen la etiqueta “Target” en la
+segunda columna</p>
+<pre class="r"><code class="hljs">genes &lt;- datos %&gt;% 
+  filter(Condicion==<span class="hljs-string">&quot;Target&quot;</span>) %&gt;% 
+  select(-<span class="hljs-number">2</span>)
+head(genes)</code></pre>
+<pre><code class="hljs">## # A tibble: 6 &#215; 7
+##   Gen                  Cx1   Cx2   Cx3    T1    T2    T3
+##   &lt;chr&gt;              &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;
+## 1 ath-miR159a-000338  35    35    35    35    35    35  
+## 2 hsa-let-7a-000377   20.5  21.0  21.0  20.4  19.6  20.9
+## 3 hsa-let-7b-002619   18.4  19.0  19.1  18.3  17.4  19.0
+## 4 hsa-let-7c-000379   22.2  23.7  23.8  22.9  22.0  24.0
+## 5 hsa-let-7d-002283   22.2  22.7  21.9  22.0  21.2  21.9
+## 6 hsa-let-7e-002406   18.0  18.4  18.5  18.0  17.3  18.6</code></pre>
+<p>Obtener el Delta CT</p>
+<pre class="r"><code class="hljs">DCT &lt;- genes %&gt;% 
+  mutate(DCT_C1=<span class="hljs-number">2</span>^-(Cx1-promedio_controles$Mean_C1),
+        DCT_C2=<span class="hljs-number">2</span>^-(Cx1-promedio_controles$Mean_C2),
+        DCT_C3=<span class="hljs-number">2</span>^-(Cx1-promedio_controles$Mean_C3),
+        DCT_T1=<span class="hljs-number">2</span>^-(T1-promedio_controles$Mean_T1),
+        DCT_T2=<span class="hljs-number">2</span>^-(T2-promedio_controles$Mean_T2),
+        DCT_T3=<span class="hljs-number">2</span>^-(T3-promedio_controles$Mean_T3)) %&gt;% 
+  select(-<span class="hljs-number">2</span>,-<span class="hljs-number">3</span>,-<span class="hljs-number">4</span>,-<span class="hljs-number">5</span>,-<span class="hljs-number">6</span>,-<span class="hljs-number">7</span>)
+
+DCT</code></pre>
+<pre><code class="hljs">## # A tibble: 360 &#215; 7
+##    Gen                    DCT_C1      DCT_C2     DCT_C3   DCT_T1  DCT_T2  DCT_T3
+##    &lt;chr&gt;                   &lt;dbl&gt;       &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+##  1 ath-miR159a-000338 0.00000124 0.000000960 0.00000114  1.47e-6 1.03e-6 1.16e-6
+##  2 hsa-let-7a-000377  0.0289     0.0223      0.0264      3.70e-2 4.49e-2 1.98e-2
+##  3 hsa-let-7b-002619  0.127      0.0985      0.116       1.62e-1 1.98e-1 7.75e-2
+##  4 hsa-let-7c-000379  0.00900    0.00695     0.00822     6.40e-3 8.67e-3 2.39e-3
+##  5 hsa-let-7d-002283  0.00893    0.00690     0.00816     1.23e-2 1.46e-2 9.87e-3
+##  6 hsa-let-7e-002406  0.167      0.129       0.152       1.91e-1 2.21e-1 1.03e-1
+##  7 hsa-let-7f-000382  0.00190    0.00147     0.00174     3.58e-3 4.25e-3 1.24e-3
+##  8 hsa-let-7g-002282  0.00963    0.00744     0.00880     9.86e-3 8.59e-3 5.50e-3
+##  9 hsa-miR-1-002222   0.0000150  0.0000116   0.0000137   5.99e-6 9.45e-6 3.04e-6
+## 10 hsa-miR-100-000437 0.287      0.222       0.262       4.10e-1 2.69e-1 6.25e-1
+## # ℹ 350 more rows</code></pre>
+<p>Obtener el promedio de grupos</p>
+<pre class="r"><code class="hljs">promedio_genes &lt;- DCT %&gt;% 
+  mutate(Mean_DCT_Cx=(DCT_C1+DCT_C2+DCT_C3)/<span class="hljs-number">3</span>,
+         Mean_DCT_Tx=(DCT_T1+DCT_T2+DCT_T3)/<span class="hljs-number">3</span>)
+
+promedio_genes</code></pre>
+<pre><code class="hljs">## # A tibble: 360 &#215; 9
+##    Gen    DCT_C1  DCT_C2  DCT_C3  DCT_T1  DCT_T2  DCT_T3 Mean_DCT_Cx Mean_DCT_Tx
+##    &lt;chr&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;       &lt;dbl&gt;       &lt;dbl&gt;
+##  1 ath-… 1.24e-6 9.60e-7 1.14e-6 1.47e-6 1.03e-6 1.16e-6  0.00000111  0.00000122
+##  2 hsa-… 2.89e-2 2.23e-2 2.64e-2 3.70e-2 4.49e-2 1.98e-2  0.0259      0.0339    
+##  3 hsa-… 1.27e-1 9.85e-2 1.16e-1 1.62e-1 1.98e-1 7.75e-2  0.114       0.146     
+##  4 hsa-… 9.00e-3 6.95e-3 8.22e-3 6.40e-3 8.67e-3 2.39e-3  0.00806     0.00582   
+##  5 hsa-… 8.93e-3 6.90e-3 8.16e-3 1.23e-2 1.46e-2 9.87e-3  0.00800     0.0123    
+##  6 hsa-… 1.67e-1 1.29e-1 1.52e-1 1.91e-1 2.21e-1 1.03e-1  0.149       0.172     
+##  7 hsa-… 1.90e-3 1.47e-3 1.74e-3 3.58e-3 4.25e-3 1.24e-3  0.00171     0.00302   
+##  8 hsa-… 9.63e-3 7.44e-3 8.80e-3 9.86e-3 8.59e-3 5.50e-3  0.00862     0.00798   
+##  9 hsa-… 1.50e-5 1.16e-5 1.37e-5 5.99e-6 9.45e-6 3.04e-6  0.0000135   0.00000616
+## 10 hsa-… 2.87e-1 2.22e-1 2.62e-1 4.10e-1 2.69e-1 6.25e-1  0.257       0.434     
+## # ℹ 350 more rows</code></pre>
+<p>Establecemos limites para la gr&#225;fica</p>
+<pre class="r"><code class="hljs">head(promedio_genes)</code></pre>
+<pre><code class="hljs">## # A tibble: 6 &#215; 9
+##   Gen     DCT_C1  DCT_C2  DCT_C3  DCT_T1  DCT_T2  DCT_T3 Mean_DCT_Cx Mean_DCT_Tx
+##   &lt;chr&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;       &lt;dbl&gt;       &lt;dbl&gt;
+## 1 ath-m… 1.24e-6 9.60e-7 1.14e-6 1.47e-6 1.03e-6 1.16e-6  0.00000111  0.00000122
+## 2 hsa-l… 2.89e-2 2.23e-2 2.64e-2 3.70e-2 4.49e-2 1.98e-2  0.0259      0.0339    
+## 3 hsa-l… 1.27e-1 9.85e-2 1.16e-1 1.62e-1 1.98e-1 7.75e-2  0.114       0.146     
+## 4 hsa-l… 9.00e-3 6.95e-3 8.22e-3 6.40e-3 8.67e-3 2.39e-3  0.00806     0.00582   
+## 5 hsa-l… 8.93e-3 6.90e-3 8.16e-3 1.23e-2 1.46e-2 9.87e-3  0.00800     0.0123    
+## 6 hsa-l… 1.67e-1 1.29e-1 1.52e-1 1.91e-1 2.21e-1 1.03e-1  0.149       0.172</code></pre>
+<pre class="r"><code class="hljs">top_10 &lt;- promedio_genes %&gt;%
+  select(<span class="hljs-number">1</span>,<span class="hljs-number">8</span>,<span class="hljs-number">9</span>) %&gt;% 
+  top_n(<span class="hljs-number">10</span>, Mean_DCT_Cx) %&gt;% 
+  arrange(desc(Mean_DCT_Cx))
+
+head(top_10)  </code></pre>
+<pre><code class="hljs">## # A tibble: 6 &#215; 3
+##   Gen                 Mean_DCT_Cx Mean_DCT_Tx
+##   &lt;chr&gt;                     &lt;dbl&gt;       &lt;dbl&gt;
+## 1 hsa-miR-24-000402         1.18        1.06 
+## 2 hsa-miR-99a-000435        0.305       0.558
+## 3 hsa-miR-145-002278        0.302       0.238
+## 4 hsa-miR-100-000437        0.257       0.434
+## 5 hsa-miR-222-002276        0.202       0.460
+## 6 hsa-miR-125b-000449       0.187       0.217</code></pre>
+<p>Graficar</p>
+<pre class="r"><code class="hljs">grafica_dispersion&lt;- ggplot(promedio_genes,
+                            mapping = aes(x = Mean_DCT_Cx,
+                                       y = Mean_DCT_Tx),
+                            colour_cut)+
+  geom_point(size=<span class="hljs-number">3</span>, color=<span class="hljs-string">&quot;blue&quot;</span>)+
+  labs(title = <span class="hljs-string">&quot;An&#225;lisis de puntos&quot;</span>,
+       x=<span class="hljs-string">&quot;Condici&#243;n Control (2^-DCT&quot;</span>)+
+  geom_smooth(method = <span class="hljs-string">&quot;1m&quot;</span>,
+              alpha=<span class="hljs-number">0.05</span>,
+              linewidth=<span class="hljs-number">1</span>, span=<span class="hljs-number">1</span>)+ <span class="hljs-comment">#para regresion</span>
+  theme_minimal()
+  geom_point()</code></pre>
+<pre><code class="hljs">## geom_point: na.rm = FALSE
+## stat_identity: na.rm = FALSE
+## position_identity</code></pre>
+<pre class="r"><code class="hljs">grafica_dispersion</code></pre>
+<pre><code class="hljs">## `geom_smooth()` using formula = &#39;y ~ x&#39;</code></pre>
+<pre><code class="hljs">## Warning: Computation failed in `stat_smooth()`.
+## Caused by error in `get()`:
+## ! el objeto &#39;1m&#39; de modo &#39;function&#39; no fue encontrado</code></pre>
+<p><img src="javascript://" width="672"/></p>
+<pre class="r"><code class="hljs">guardar &lt;- ggsave(<span class="hljs-string">&quot;grafica_dispersion.jpeg&quot;</span>,
+                  plot = grafica_dispersion,
+                  width=<span class="hljs-number">6</span>, height = <span class="hljs-number">4</span>,
+                  dpi = <span class="hljs-number">300</span>)</code></pre>
+<pre><code class="hljs">## `geom_smooth()` using formula = &#39;y ~ x&#39;</code></pre>
+<pre><code class="hljs">## Warning: Computation failed in `stat_smooth()`.
+## Caused by error in `get()`:
+## ! el objeto &#39;1m&#39; de modo &#39;function&#39; no fue encontrado</code></pre>
+<pre class="r"><code class="hljs"><span class="hljs-comment">#Crear la gr&#225;fica de dispersi&#243;n</span>
+
+grafica_dispersion &lt;- ggplot(promedio_genes,
+                             aes(x = Mean_DCT_Cx,
+                                 y = Mean_DCT_Tx))+
+  geom_point(size = <span class="hljs-number">2</span>,
+             color = <span class="hljs-string">&quot;blue&quot;</span>)+
+  labs(title = <span class="hljs-string">&quot;Condici&#243;n control vs tratamiento&quot;</span>,
+       caption = <span class="hljs-string">&quot;Creador: Luis Carrera&quot;</span>,
+       x = expression(<span class="hljs-string">&quot;Control 2&quot;</span>^<span class="hljs-string">&quot;-DCT&quot;</span>),
+       y = expression(<span class="hljs-string">&quot;Tratamiento 2&quot;</span>^<span class="hljs-string">&quot;-DCT&quot;</span>))+
+  geom_smooth(method = <span class="hljs-string">&quot;lm&quot;</span>, color = <span class="hljs-string">&quot;black&quot;</span>)+
+  theme_minimal()+ <span class="hljs-comment">#Estilo de la gr&#225;fica</span>
+  theme(
+    panel.background = element_rect(fill = <span class="hljs-string">&quot;white&quot;</span>), <span class="hljs-comment">#Fondo blanco</span>
+    panel.grid.major = element_blank(), <span class="hljs-comment">#Sin enrejado</span>
+    axis.text = element_text(family = <span class="hljs-string">&quot;Arial&quot;</span>, size = <span class="hljs-number">12</span>), <span class="hljs-comment">#Texto de ejes tama&#241;o 12 y tipo &quot;Times&quot;</span>
+    axis.title = element_text(family = <span class="hljs-string">&quot;Arial&quot;</span>, size = <span class="hljs-number">14</span>, face = <span class="hljs-string">&quot;bold&quot;</span>), <span class="hljs-comment">#Texto de leyenda tama&#241;o 14 y tipo #Times</span>
+    legend.title = element_text(family = <span class="hljs-string">&quot;Arial&quot;</span>, size = <span class="hljs-number">14</span>),
+    legend.text = element_text(family = <span class="hljs-string">&quot;Arial&quot;</span>, size = <span class="hljs-number">14</span>) <span class="hljs-comment">#Texto de etiquetas de leyendas tama&#241;o 14 y tipo &quot;Times&quot;</span>
+  )+
+   geom_label_repel(data = top_10, <span class="hljs-comment">#Usar el date frame con los 10 mejores registros</span>
+                   mapping = aes(x = Mean_DCT_Cx,
+                                 y = Mean_DCT_Tx,
+                                 label = Gen),
+                   label.padding = unit(<span class="hljs-number">0.2</span>, <span class="hljs-string">&quot;lines&quot;</span>))
+
+
+grafica_dispersion</code></pre>
+<pre><code class="hljs">## `geom_smooth()` using formula = &#39;y ~ x&#39;</code></pre>
+<pre><code class="hljs">## Warning in grid.Call(C_stringMetric, as.graphicsAnnot(x$label)): font family
+## not found in Windows font database</code></pre>
+<pre><code class="hljs">## Warning in grid.Call(C_stringMetric, as.graphicsAnnot(x$label)): font family
+## not found in Windows font database</code></pre>
+<pre><code class="hljs">## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database</code></pre>
+<pre><code class="hljs">## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database
+
+## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database</code></pre>
+<p><img src="javascript://" width="672"/></p>
+
+
+
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="module" src="https://s.brightspace.com/lib/bsi/20.24.3-265/unbundled/mathjax.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					if (document.querySelector('math') || /\$\$|\\\(|\\\[|\\begin{|\\ref{|\\eqref{/.test(document.body.innerHTML)) {
+						document.querySelectorAll('mspace[linebreak="newline"]').forEach(elm => {
+							elm.setAttribute('style', 'display: block; height: 0.5rem;');
+						});
+
+						window.D2L.MathJax.loadMathJax({
+							'outputScale': 1.5,
+							'renderLatex': false
+						});
+					}
+				});</script><script type="module" src="https://s.brightspace.com/lib/bsi/20.24.3-265/unbundled/prism.js"></script><script type="text/javascript">document.addEventListener('DOMContentLoaded', function() {
+					document.querySelectorAll('.d2l-code').forEach(code => {
+						window.D2L.Prism.formatCodeElement(code);
+					});
+				});</script></body></html>
